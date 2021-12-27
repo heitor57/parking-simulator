@@ -1,6 +1,5 @@
 # Parking simulator
 
-----
 ## Generate executables
 
     make
