@@ -1,0 +1,72 @@
+#!/bin/bash
+#maneuversSizes="1"
+#maneuversSizes=$(echo {10000..1000000..10000})
+
+process-one (){
+    if [ -z "$1" ] || [ -z "$2" ]
+    then
+	echo "$0 <initial config file> <maneuvers>"
+	exit
+    fi
+
+    local initialConfig=$1
+    local maneuvers=$2
+    local initialConfigLines=$(wc -l <$initialConfig)
+    local maneuversLines=$(wc -l <$maneuvers)
+    local RootDir=data/
+    local prefixNormal=normal-
+    local prefixPerfect=perfect-
+    local suffixName=-time-$initialConfigLines-$maneuversLines.txt
+    mkdir -p $RootDir
+
+    local output=$(./parking-simulator -c $initialConfig -m $maneuvers)
+    local values=$(echo "$output" | awk '/Total Time/{print $3 $6 $9}'| grep -o '[0-9]\+.[0-9]\+')
+
+    echo $(echo "$values" | sed -n '1p')" usr $initialConfigLines $maneuversLines">> "$RootDir$prefixNormal""data.txt"
+    echo $(echo "$values" | sed -n '2p')" sys $initialConfigLines $maneuversLines">> "$RootDir$prefixNormal""data.txt"
+    echo $(echo "$values" | sed -n '3p')" total $initialConfigLines $maneuversLines">> "$RootDir$prefixNormal""data.txt"
+
+
+    local output=$(./parking-simulator-perfect -c $initialConfig -m $maneuvers)
+    local values=$(echo "$output" | awk '/Total Time/{print $3 $6 $9}'| grep -o '[0-9]\+.[0-9]\+')
+
+    echo $(echo "$values" | sed -n '1p')" usr $initialConfigLines $maneuversLines">> "$RootDir$prefixPerfect""data.txt"
+    echo $(echo "$values" | sed -n '2p')" sys $initialConfigLines $maneuversLines">> "$RootDir$prefixPerfect""data.txt"
+    echo $(echo "$values" | sed -n '3p')" total $initialConfigLines $maneuversLines">> "$RootDir$prefixPerfect""data.txt"
+}
+
+
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]
+then
+    echo "$0 <initial config file> <maneuvers> <execution times> <initial value> <step> <final value>"
+    exit
+fi
+
+initialConfig=$1
+maneuvers=$2
+executeTimes=$3
+maneuversSizes=$(seq "$4" "$5" "$6")
+initialConfigLines=$(wc -l <$initialConfig)
+maneuversLines=$(wc -l <$maneuvers)
+RootDir=expandedManeuvers/
+
+mkdir -p $RootDir
+
+for size in $maneuversSizes
+do
+    
+    expandedManeuvers=""
+    temp="$(cat $maneuvers)"
+    expandedManeuversName="$RootDir".expandedmaneuvers-"$maneuvers"-"$size"-"$maneuversLines".log
+    if ! [ -e "$expandedManeuversName" ]
+    then
+	yes "$temp" | head -n $size > $expandedManeuversName
+    fi
+    for ((i=1;i<=$executeTimes;i++))
+    do
+	process-one $initialConfig $expandedManeuversName
+	#echo "Number of maneuvers:"$size"[$i]"
+    done
+    echo "Number of maneuvers:"$size" done."
+done
+
